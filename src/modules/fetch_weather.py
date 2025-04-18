@@ -15,7 +15,7 @@ class Weather(NamedTuple):
     timestamp: str
 
 # ========== TEMP COLORS ==========
-def get_temperature_color(temp: int, units: str) -> Optional[str]:
+def get_temperature_color(temp: float, units: str) -> Optional[str]:
     if units == "metric":
         thresholds = [(-20, "35"), (-13, "38;5;201"), (3, "38;5;51"), (15, "38;5;28"), (25, "33"), (30, "38;5;208")]
     elif units == "imperial":
@@ -25,11 +25,11 @@ def get_temperature_color(temp: int, units: str) -> Optional[str]:
 
     for threshold, color in thresholds:
         if temp <= threshold:
-            return f"\033[{color}m"
+            return f"\033[{color}m{temp}\033[0m"
     return "\033[31m"
 
 # ========== WIND COLORS ==========
-def get_wind_color(speed: int, units: str) -> Optional[str]:
+def get_wind_color(speed: float, units: str) -> Optional[str]:
     if units == "metric":
         thresholds = [(5, "36"), (15, "32"), (30, "38;5;226"), (50, "38;5;208")]
     elif units == "imperial":
@@ -39,13 +39,17 @@ def get_wind_color(speed: int, units: str) -> Optional[str]:
 
     for threshold, color in thresholds:
         if speed <= threshold:
-            return f"\033[{color}m"
+            return f"\033[{color}m{speed}\033[0m"
     return "\033[31m"
 
 # ========== FETCHING WEATHER ==========
 def fetch_weather_wttr(city: str, units: str) -> Weather:
     # Getting weather in json format
-    response: requests.Response = requests.get(f"https://wttr.in/{city}?format=j1")
+    params: dict[str, str] = {
+        "format": "j1"
+    }
+
+    response: requests.Response = requests.get(f"https://wttr.in/{city}", params=params)
     data = response.json()
     current = data["current_condition"][0]
 
@@ -58,14 +62,14 @@ def fetch_weather_wttr(city: str, units: str) -> Weather:
     # Temperature
     temp_key = f"temp_{'C' if units == 'metric' else 'F'}"
     feels_key = f"FeelsLike{'C' if units == 'metric' else 'F'}"
-    temp = get_temperature_color(int(current[temp_key]), units) + current[temp_key] + "\033[0m"
-    feels = get_temperature_color(int(current[feels_key]), units) + current[feels_key] + "\033[0m"
+    temp = get_temperature_color(float(current[temp_key]), units)
+    feels = get_temperature_color(float(current[feels_key]), units)
     unit_temp = "°C" if units == "metric" else "°F"
     feels_part = "" if feels == temp else f"({feels})"
 
     # Wind
     wind_key = "Kmph" if units == "metric" else "Miles"
-    wind = get_wind_color(int(current[f"windspeed{wind_key}"]), units) + current[f"windspeed{wind_key}"] + "\033[0m"
+    wind = get_wind_color(float(current[f"windspeed{wind_key}"]), units)
     unit_wind = "km/h" if units == "metric" else "miles"
 
     # Sunrise / Sunset
@@ -86,7 +90,13 @@ def fetch_weather_wttr(city: str, units: str) -> Weather:
 
 def fetch_weather_owm(city: str, units: str, api: str) -> Weather:
     # Getting weather in json format
-    response: requests.Response = requests.get(f"https://api.openweathermap.org/data/2.5/weather?q={city}&lang=en&units={units}&APPID={api}")
+    params: dict[str, str] = {
+        "q": city,
+        "lang": "en",
+        "units": units,
+        "APPID": api
+    }
+    response: requests.Response = requests.get(f"https://api.openweathermap.org/data/2.5/weather", params=params)
     data = response.json()
 
     # Getting region name
@@ -96,13 +106,13 @@ def fetch_weather_owm(city: str, units: str, api: str) -> Weather:
     description = data["weather"][0]["main"]
 
     # Temperature
-    temp = f"{get_temperature_color(int(data["main"]["temp"]), units)}{data["main"]["temp"]}\033[0m"
-    feels = f"{get_temperature_color(int(data["main"]["feels_like"]), units)}{data["main"]["feels_like"]}\033[0m"
+    temp = get_temperature_color(float(data["main"]["temp"]), units)
+    feels = get_temperature_color(float(data["main"]["feels_like"]), units)
     unit_temp = "°C" if units == "metric" else "°F"
     feels_part = "" if feels == temp else f"({feels})"
 
     # Wind
-    wind = f"{get_wind_color(int(data["wind"]["speed"]), units)}{data["wind"]["speed"]}\033[0m"
+    wind = get_wind_color(float(data["wind"]["speed"]), units)
     unit_wind = "km/h" if units == "metric" else "miles"
 
     # Sunrise / Sunset
@@ -115,6 +125,50 @@ def fetch_weather_owm(city: str, units: str, api: str) -> Weather:
         data["sys"]["sunset"],
         tz
     ).strftime('%H:%M:%S')
+
+    # Timestamp
+    timestamp = datetime.now().strftime("%x %H:%S")
+
+    return Weather(region, description, f"{temp}{feels_part} {unit_temp}",
+                   f"{wind} {unit_wind}", sunrise, sunset, timestamp)
+
+def fetch_weather_wapi(city: str, units: str, api: str) -> Weather:
+    # Getting weather in json format
+    params: dict[str, str] = {
+        "q": city,
+        "lang": "en",
+        "key": api
+    }
+    response: requests.Response = requests.get(f"https://api.weatherapi.com/v1/current.json", params=params)
+    data = response.json()
+
+    # Getting region name
+    region = data["location"]["region"]
+
+    # Getting weather description
+    description = data["current"]["condition"]["text"]
+
+    # Temperature
+    temp_key = "temp_" + "c" if units == "metric" else "f"
+    feels_key = "feelslike_" + "c" if units == "metric" else "f"
+    temp = get_temperature_color(float(data["current"][temp_key]), units)
+    feels = get_temperature_color(float(data["current"][feels_key]), units)
+    unit_temp = "°C" if units == "metric" else "°F"
+    feels_part = "" if feels == temp else f"({feels})"
+
+    # Wind
+    wind_key = "wind_" + "kph" if units == "metric" else "mph"
+    wind = get_wind_color(float(data["current"][wind_key]), units)
+    unit_wind = "km/h" if units == "metric" else "miles"
+
+    # Sunrise / Sunset
+    astro = requests.get("https://api.weatherapi.com/v1/astronomy.json", params=params).json()
+    sunrise = datetime.strptime(
+        astro["astronomy"]["astro"]["sunrise"], "%I:%M %p"
+    ).strftime("%H:%M")
+    sunset = datetime.strptime(
+        astro["astronomy"]["astro"]["sunset"], "%I:%M %p"
+    ).strftime("%H:%M")
 
     # Timestamp
     timestamp = datetime.now().strftime("%x %H:%S")

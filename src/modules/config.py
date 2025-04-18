@@ -8,7 +8,9 @@ from parser import configure_parser
 showCityName: bool = True
 showTime: bool = True
 separator: str = ": "
-api: Optional[str] = os.getenv("API_WEATHER") # Change it to your api but it doesn't important if you don't use APIOpenWeather or you can add enviroment variable
+api_owm: Optional[str] = os.getenv("API_OPENWEATHER") # Change it to your api but it doesn't important if you don't use APIOpenWeather or you can add enviroment variable
+api_wapi: Optional[str] = os.getenv("API_WEATHERAPI")
+
 list_names_weather: list[str] = [ # Here you can change names of data, but you mustn't change meaning, only when you change `fetch_weather.py`
     "Region",
     "Description",

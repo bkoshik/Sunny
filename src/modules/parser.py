@@ -21,6 +21,6 @@ def configure_parser() -> argparse.Namespace:
     formatGroup.add_argument("-jf", "--json-format", dest="JsonFormat",
                         required=False, action="store", help="Use your own format with json parsing")
     parser.add_argument("-s", "--source", dest="Source",
-                        choices=["wttr.in", "openweathermap"], default="wttr.in")
+                        choices=["wttr.in", "openweathermap", "weatherapi"], default="wttr.in")
 
     return parser.parse_args()

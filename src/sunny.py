@@ -7,7 +7,7 @@ import requests
 import argparse
 import re
 from modules.ascii_art import find_ascii
-from modules.fetch_weather import fetch_weather_wttr, fetch_weather_owm
+from modules.fetch_weather import fetch_weather_wttr, fetch_weather_owm, fetch_weather_wapi
 from modules.parser import configure_parser
 from modules.format import print_format, json_template_render
 from modules.config import *
@@ -73,27 +73,29 @@ def print_weather(weather_data: NamedTuple) -> None:
 
 # ========== MAIN ==========
 def main() -> None:
-    def source(city: str, units: str, api: str):
-        if args.City:
+    def source(city: str, units: str, api_owm: str, api_wapi: str):
+        def weather_source(city: str, units: str, api_owm: str, api_wapi: str):
             if args.Source == "wttr.in":
                 weather = fetch_weather_wttr(city, units)
             elif args.Source == "openweathermap":
-                weather = fetch_weather_owm(city, units, api)
+                weather = fetch_weather_owm(city, units, api_owm)
+            elif args.Source == "weatherapi":
+                weather = fetch_weather_wapi(city, units, api_wapi)
+
+            return weather
+
+        if args.City:
+            return weather_source(args.City, args.Units, api_owm, api_wapi)
         elif args.AutoCity:
             ipcity: str = requests.get("https://ipinfo.io").json()["city"]
-            if args.Source == "wttr.in":
-                weather = fetch_weather_wttr(ipcity, args.Units)
-            elif args.Source == "openweathermap":
-                weather = fetch_weather_owm(ipcity, args.Units, api)
-
-        return weather
+            return weather_source(ipcity, args.Units, api_owm, api_wapi)
 
     # Get arguments
     args: argparse.Namespace = configure_parser()
 
     # Calling print_weather function
-    weather = source(args.City, args.Units, api)
-    
+    weather = source(args.City, args.Units, api_owm, api_wapi)
+
     if weather:
         print_weather(weather)
 
