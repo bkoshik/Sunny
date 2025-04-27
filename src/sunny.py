@@ -46,10 +46,7 @@ def draw_box_ascii_only(lines: list[str], width: int = 14) -> str:
     return f"{top}\n{day}\n{mid}\n{body}{bot}"
 
 # ========== RENDER ==========
-def print_weather(weather_data: NamedTuple) -> None:
-    # Get arguments
-    args: argparse.Namespace = configure_parser()
-
+def print_weather(weather_data: NamedTuple, args: argparse.Namespace) -> None:
     # Print weather with ASCII art
     if not any(groups["output"]):
         ascii_weather: list[str] = find_ascii(
@@ -72,8 +69,8 @@ def print_weather(weather_data: NamedTuple) -> None:
         print(draw_box_ascii_only(lines))
 
 # ========== MAIN ==========
-def main() -> None:
-    def source(city: str, units: str, api_owm: str, api_wapi: str):
+def main(args) -> None:
+    def source(api_owm: str, api_wapi: str, args: argparse.Namespace):
         def weather_source(city: str, units: str, api_owm: str, api_wapi: str):
             if args.Source == "wttr.in":
                 weather = fetch_weather_wttr(city, units)
@@ -90,15 +87,13 @@ def main() -> None:
             ipcity: str = requests.get("https://ipinfo.io").json()["city"]
             return weather_source(ipcity, args.Units, api_owm, api_wapi)
 
-    # Get arguments
-    args: argparse.Namespace = configure_parser()
-
     # Calling print_weather function
-    weather = source(args.City, args.Units, api_owm, api_wapi)
+    weather = source(api_owm, api_wapi, args)
 
     if weather:
-        print_weather(weather)
+        print_weather(weather, args)
 
 
 if __name__ == "__main__":
-    main()
+    args: argparse.Namespace = configure_parser()
+    main(args)
